@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IPL Auction — {{ team_name }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    :root {
+      --bg:    #050a0f;
+      --bg2:   #0a1520;
+      --bg3:   #0f1e2d;
+      --card:  #0d1b2a;
+      --bdr:   #1a3a55;
+      --gold:  #f5c842;
+      --gold2: #e8a825;
+      --blue:  #0ea5e9;
+      --red:   #ef4444;
+      --green: #22c55e;
+      --text:  #e2e8f0;
+      --text2: #94a3b8;
+      --text3: #64748b;
+    }
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      background:var(--bg); color:var(--text);
+      font-family:'Rajdhani',sans-serif; min-height:100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      height: 62px;
+      border-bottom: 1px solid var(--bdr);
+      background: linear-gradient(90deg, #07111d 0%, #050a0f 100%);
+      position: sticky; top: 0; z-index: 200;
+    }
+
+    .header-left { display:flex; align-items:center; gap:12px; }
+    .header-logo {
+      font-family:'Bebas Neue',sans-serif; font-size:26px; letter-spacing:.06em;
+      background:linear-gradient(135deg,#fff 0%,var(--gold) 55%,#fff 100%);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    }
+    .live-badge {
+      display:inline-flex; align-items:center; gap:5px;
+      background:rgba(239,68,68,.15); border:1px solid rgba(239,68,68,.35);
+      color:var(--red); font-size:10px; font-weight:700; letter-spacing:.18em;
+      padding:3px 10px; border-radius:20px;
+    }
+    .live-dot { width:6px; height:6px; background:var(--red); border-radius:50%; animation:pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.5)} }
+
+    .header-right { display:flex; align-items:center; gap:14px; }
+    .user-pill {
+      display:flex; align-items:center; gap:8px;
+      background:var(--bg3); border:1px solid var(--bdr);
+      border-radius:6px; padding:6px 12px;
+    }
+    .user-avatar {
+      width:28px; height:28px; border-radius:50%;
+      background:var(--gold); color:#000;
+      display:flex; align-items:center; justify-content:center;
+      font-family:'Bebas Neue',sans-serif; font-size:14px; font-weight:700;
+    }
+    .user-name  { font-size:14px; font-weight:700; color:var(--text); }
+    .user-team  { font-size:11px; color:var(--gold); font-weight:600; }
+
+    .logout-btn {
+      background:transparent; border:1px solid var(--bdr); color:var(--text3);
+      padding:6px 14px; border-radius:5px;
+      font-family:'Rajdhani',sans-serif; font-size:13px; font-weight:700;
+      cursor:pointer; transition:all .2s; text-transform:uppercase; letter-spacing:.06em;
+    }
+    .logout-btn:hover { border-color:var(--red); color:var(--red); }
+
+    /* ── Filter Bar ── */
+    .filter-bar {
+      display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+      padding:12px 28px; background:var(--bg2); border-bottom:1px solid var(--bdr);
+    }
+    .filter-label { font-size:11px; font-weight:700; letter-spacing:.15em; color:var(--text3); text-transform:uppercase; margin-right:4px; }
+    .filter-btn {
+      background:transparent; border:1px solid var(--bdr); color:var(--text2);
+      padding:5px 14px; border-radius:4px;
+      font-family:'Rajdhani',sans-serif; font-size:13px; font-weight:600;
+      cursor:pointer; transition:all .2s; text-transform:uppercase; letter-spacing:.05em;
+    }
+    .filter-btn:hover  { border-color:var(--gold); color:var(--gold); }
+    .filter-btn.active { background:var(--gold); border-color:var(--gold); color:#0a0a0a; }
+
+    /* ── Layout ── */
+    .main-wrap {
+      display:grid; grid-template-columns:1fr 420px;
+      min-height: calc(100vh - 107px);
+    }
+
+    /* ── Player List ── */
+    .player-list { padding:22px 28px; border-right:1px solid var(--bdr); }
+    .list-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+    .list-title { font-family:'Barlow Condensed',sans-serif; font-size:12px; font-weight:700; letter-spacing:.25em; color:var(--text3); text-transform:uppercase; }
+
+    /* ── Player Card ── */
+    .player-card {
+      display:grid; grid-template-columns:58px 1fr auto;
+      align-items:center; gap:13px;
+      padding:13px 16px; border:1px solid var(--bdr); border-radius:6px;
+      margin-bottom:8px; cursor:pointer; transition:all .22s;
+      background:var(--card); position:relative; overflow:hidden;
+    }
+    .player-card::before {
+      content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+      background:var(--bdr); transition:background .22s;
+    }
+    .player-card:hover               { border-color:var(--gold); transform:translateX(4px); }
+    .player-card:hover::before       { background:var(--gold); }
+    .player-card.active              { border-color:var(--gold); background:#111f2e; }
+    .player-card.active::before      { background:var(--gold); }
+    .player-card.sold                { opacity:.55; }
+    .player-card.sold::before        { background:var(--green); }
+
+    .avatar-ph {
+      width:58px; height:58px; border-radius:6px;
+      background:var(--bg3); border:1px solid var(--bdr);
+      display:flex; align-items:center; justify-content:center;
+      font-family:'Bebas Neue',sans-serif; font-size:20px; color:var(--text3);
+    }
+    .p-name { font-family:'Barlow Condensed',sans-serif; font-size:18px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .p-meta { display:flex; gap:7px; margin-top:3px; align-items:center; flex-wrap:wrap; }
+    .role-tag { font-size:10px; font-weight:700; letter-spacing:.1em; padding:2px 7px; border-radius:3px; text-transform:uppercase; }
+    .role-Batsman     { background:rgba(245,200,66,.15); color:var(--gold);  border:1px solid rgba(245,200,66,.3); }
+    .role-Bowler      { background:rgba(14,165,233,.15);  color:var(--blue);  border:1px solid rgba(14,165,233,.3); }
+    .role-All-Rounder { background:rgba(34,197,94,.15);   color:var(--green); border:1px solid rgba(34,197,94,.3); }
+    .role-WK-Batsman  { background:rgba(168,85,247,.15);  color:#a855f7;      border:1px solid rgba(168,85,247,.3); }
+    .p-team { font-size:11px; color:var(--text3); font-weight:600; }
+
+    .price-col    { text-align:right; flex-shrink:0; }
+    .price-lbl    { font-size:10px; font-weight:700; letter-spacing:.12em; color:var(--text3); text-transform:uppercase; }
+    .curr-price   { font-family:'Bebas Neue',sans-serif; font-size:25px; color:var(--gold); line-height:1.15; }
+    .sold-badge   { background:var(--green); color:#000; font-size:10px; font-weight:800; letter-spacing:.12em; padding:2px 7px; border-radius:3px; margin-top:3px; }
+
+    /* ── Detail Panel ── */
+    .detail-panel {
+      position:sticky; top:107px; height:calc(100vh - 107px);
+      overflow-y:auto; background:var(--bg2);
+    }
+    .detail-panel::-webkit-scrollbar { width:4px; }
+    .detail-panel::-webkit-scrollbar-thumb { background:var(--bdr); border-radius:2px; }
+
+    .empty-state {
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      height:100%; color:var(--text3); gap:10px; padding:40px; text-align:center;
+    }
+    .empty-icon { font-size:52px; opacity:.25; }
+    .empty-state p { font-size:14px; line-height:1.7; font-weight:500; }
+
+    /* ── Detail Content ── */
+    .d-hero {
+      padding:24px 22px 16px;
+      border-bottom:1px solid var(--bdr);
+      background:linear-gradient(135deg,#0f1e2d,#0a1520);
+    }
+    .d-hero-inner { display:flex; gap:14px; align-items:flex-start; }
+    .d-avatar {
+      width:82px; height:82px; border-radius:8px; border:2px solid var(--gold);
+      background:var(--bg3); display:flex; align-items:center; justify-content:center;
+      font-family:'Bebas Neue',sans-serif; font-size:32px; color:var(--gold); flex-shrink:0;
+    }
+    .d-name { font-family:'Bebas Neue',sans-serif; font-size:30px; letter-spacing:.03em; line-height:1; }
+    .d-tags { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+    .d-team { font-size:12px; color:var(--text2); font-weight:600; margin-top:5px; }
+
+    .price-section { padding:16px 22px; border-bottom:1px solid var(--bdr); background:var(--bg3); }
+    .price-row { display:flex; justify-content:space-between; align-items:center; }
+    .price-item { text-align:center; flex:1; }
+    .pi-label { font-size:10px; font-weight:700; letter-spacing:.2em; color:var(--text3); text-transform:uppercase; margin-bottom:3px; }
+    .pi-value { font-family:'Bebas Neue',sans-serif; font-size:23px; letter-spacing:.02em; }
+    .pi-value.gold  { color:var(--gold); }
+    .pi-value.blue  { color:var(--blue); }
+    .pi-value.green { color:var(--green); }
+    .pdiv { width:1px; height:36px; background:var(--bdr); }
+
+    .stats-section { padding:16px 22px; border-bottom:1px solid var(--bdr); }
+    .sec-title { font-family:'Barlow Condensed',sans-serif; font-size:11px; font-weight:700; letter-spacing:.25em; color:var(--text3); text-transform:uppercase; margin-bottom:10px; }
+    .stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
+    .stat-box { background:var(--card); border:1px solid var(--bdr); border-radius:5px; padding:10px 8px; text-align:center; }
+    .sv { font-family:'Bebas Neue',sans-serif; font-size:22px; color:var(--text); line-height:1; }
+    .sl { font-size:10px; font-weight:700; letter-spacing:.12em; color:var(--text3); text-transform:uppercase; margin-top:2px; }
+
+    .bid-section { padding:16px 22px; border-bottom:1px solid var(--bdr); }
+    .bid-form { display:flex; flex-direction:column; gap:8px; }
+
+    input[type="number"] {
+      background:#07111d; border:1px solid var(--bdr); color:var(--text);
+      padding:10px 13px; border-radius:4px;
+      font-family:'Rajdhani',sans-serif; font-size:15px; font-weight:600;
+      width:100%; outline:none; transition:border-color .2s;
+    }
+    input[type="number"]:focus { border-color:var(--gold); }
+    input::placeholder { color:var(--text3); }
+
+    .bid-btn {
+      width:100%; background:var(--gold); color:#050a0f; border:none;
+      padding:12px; border-radius:4px;
+      font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:.08em;
+      cursor:pointer; transition:all .2s;
+    }
+    .bid-btn:hover { background:#fff; transform:translateY(-1px); }
+
+    .sell-btn {
+      flex:1; background:transparent; color:var(--green); border:1px solid var(--green);
+      padding:9px; border-radius:4px;
+      font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:.06em;
+      cursor:pointer; transition:all .2s;
+    }
+    .sell-btn:hover { background:var(--green); color:#000; }
+
+    .reset-btn {
+      background:transparent; color:var(--text3); border:1px solid var(--bdr);
+      padding:9px 13px; border-radius:4px;
+      font-family:'Rajdhani',sans-serif; font-size:12px; font-weight:700;
+      cursor:pointer; letter-spacing:.06em; text-transform:uppercase; transition:all .2s;
+    }
+    .reset-btn:hover { border-color:var(--red); color:var(--red); }
+    .action-row { display:flex; gap:7px; }
+
+    .bid-msg { font-size:13px; font-weight:600; padding:8px 11px; border-radius:4px; display:none; }
+    .bid-msg.ok  { background:rgba(34,197,94,.12); color:var(--green); border:1px solid rgba(34,197,94,.3); display:block; }
+    .bid-msg.err { background:rgba(239,68,68,.12); color:var(--red);   border:1px solid rgba(239,68,68,.3); display:block; }
+
+    .sold-banner { margin:14px 22px 0; background:rgba(34,197,94,.08); border:1px solid rgba(34,197,94,.3); border-radius:6px; padding:13px; text-align:center; }
+    .sb-title    { font-family:'Bebas Neue',sans-serif; font-size:24px; color:var(--green); letter-spacing:.1em; }
+    .sb-sub      { font-size:13px; color:var(--text2); margin-top:3px; font-weight:600; }
+
+    .history-section { padding:16px 22px; }
+    .bh-item { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid rgba(26,58,85,.5); }
+    .bh-item:last-child { border-bottom:none; }
+    .bh-bidder { font-weight:700; font-size:14px; }
+    .bh-time   { font-size:11px; color:var(--text3); margin-top:1px; }
+    .bh-amount { font-family:'Bebas Neue',sans-serif; font-size:19px; color:var(--gold); }
+
+    /* ── Toast ── */
+    .toast {
+      position:fixed; bottom:26px; right:26px;
+      background:var(--bg2); border:1px solid var(--gold); border-radius:6px;
+      padding:12px 16px; z-index:9999; max-width:290px;
+      transform:translateY(80px); opacity:0;
+      transition:all .35s cubic-bezier(.34,1.56,.64,1);
+    }
+    .toast.show { transform:translateY(0); opacity:1; }
+    .t-title { font-family:'Bebas Neue',sans-serif; font-size:16px; letter-spacing:.05em; color:var(--gold); }
+    .t-body  { font-size:12px; color:var(--text2); margin-top:1px; font-weight:600; }
+
+    @keyframes priceFlash {
+      0%   { color:var(--gold); }
+      35%  { color:var(--green); transform:scale(1.2); }
+      100% { color:var(--gold); transform:scale(1); }
+    }
+    .price-flash { animation:priceFlash .55s ease; }
+
+    /* Bidder label */
+    .bidding-as {
+      background:rgba(245,200,66,.08); border:1px solid rgba(245,200,66,.2);
+      border-radius:4px; padding:8px 12px; margin-bottom:6px;
+      font-size:13px; font-weight:600; color:var(--text2);
+    }
+    .bidding-as strong { color:var(--gold); }
+
+    @media(max-width:860px){
+      .main-wrap { grid-template-columns:1fr; }
+      .detail-panel { position:fixed; bottom:0; left:0; right:0; height:78vh; z-index:300; border-radius:14px 14px 0 0; display:none; top:auto; }
+      .detail-panel.open { display:block; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Sticky Header ── -->
+<header>
+  <div class="header-left">
+    <div class="header-logo">🏏 IPL Auction</div>
+    <div class="live-badge"><span class="live-dot"></span> LIVE</div>
+  </div>
+  <div class="header-right">
+    <div class="user-pill">
+      <div class="user-avatar" id="userAvatar">{{ username[0]|upper }}</div>
+      <div>
+        <div class="user-name">{{ username }}</div>
+        <div class="user-team">{{ team_name }}</div>
+      </div>
+    </div>
+    <button class="logout-btn" onclick="window.location.href='/logout'">Logout</button>
+  </div>
+</header>
+
+<!-- ── Filters ── -->
+<div class="filter-bar">
+  <span class="filter-label">Filter:</span>
+  <button class="filter-btn active" onclick="filterPlayers('all',this)">All</button>
+  <button class="filter-btn" onclick="filterPlayers('Batsman',this)">Batsmen</button>
+  <button class="filter-btn" onclick="filterPlayers('Bowler',this)">Bowlers</button>
+  <button class="filter-btn" onclick="filterPlayers('All-Rounder',this)">All-Rounders</button>
+  <button class="filter-btn" onclick="filterPlayers('WK-Batsman',this)">Wicket-Keepers</button>
+  <button class="filter-btn" onclick="filterPlayers('sold',this)">Sold ✓</button>
+</div>
+
+<!-- ── Main ── -->
+<div class="main-wrap">
+
+  <div class="player-list">
+    <div class="list-header">
+      <span class="list-title">Players on Auction</span>
+      <span class="list-title" id="playerCount">Loading…</span>
+    </div>
+    <div id="playerCards"></div>
+  </div>
+
+  <div class="detail-panel" id="detailPanel">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">🏏</div>
+      <p>Select a player<br>to view details &amp; bid</p>
+    </div>
+    <div id="playerDetail" style="display:none"></div>
+  </div>
+
+</div>
+
+<!-- ── Toast ── -->
+<div class="toast" id="toast">
+  <div class="t-title" id="tTitle"></div>
+  <div class="t-body"  id="tBody"></div>
+</div>
+
+<script>
+  const socket    = io();
+  const MY_TEAM   = "{{ team_name }}";
+  let allPlayers  = [];
+  let filter      = 'all';
+  let selectedId  = null;
+
+  async function fetchPlayers() {
+    const res  = await fetch('/api/players');
+    allPlayers = await res.json();
+    renderList();
+    document.getElementById('playerCount').textContent = allPlayers.length + ' players';
+  }
+
+  function filterPlayers(f, btn) {
+    filter = f;
+    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    renderList();
+  }
+
+  function renderList() {
+    let list = allPlayers;
+    if (filter === 'sold')     list = list.filter(p=>p.is_sold);
+    else if (filter !== 'all') list = list.filter(p=>p.role===filter);
+
+    document.getElementById('playerCards').innerHTML = list.map(p => {
+      const init = p.name.split(' ').map(n=>n[0]).join('').slice(0,2);
+      return `
+        <div class="player-card ${p.is_sold?'sold':''} ${selectedId===p.id?'active':''}"
+             id="card-${p.id}" onclick="selectPlayer(${p.id})">
+          <div class="avatar-ph">${init}</div>
+          <div>
+            <div class="p-name">${p.name}</div>
+            <div class="p-meta">
+              <span class="role-tag role-${p.role.replace(' ','-')}">${p.role}</span>
+              <span class="p-team">${p.team}</span>
+            </div>
+          </div>
+          <div class="price-col">
+            <div class="price-lbl">Current Bid</div>
+            <div class="curr-price" id="price-${p.id}">₹${p.current_price}L</div>
+            ${p.is_sold?'<div class="sold-badge">SOLD</div>':''}
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  async function selectPlayer(id) {
+    selectedId = id;
+    document.querySelectorAll('.player-card').forEach(c=>c.classList.remove('active'));
+    const card = document.getElementById('card-'+id);
+    if (card) card.classList.add('active');
+
+    const res = await fetch('/api/player/'+id);
+    const p   = await res.json();
+    document.getElementById('emptyState').style.display   = 'none';
+    document.getElementById('playerDetail').style.display = 'block';
+    renderDetail(p);
+    document.getElementById('detailPanel').classList.add('open');
+  }
+
+  function renderDetail(p) {
+    const init     = p.name.split(' ').map(n=>n[0]).join('').slice(0,2);
+    const bat      = ['Batsman','All-Rounder','WK-Batsman'].includes(p.role);
+    const bowl     = ['Bowler','All-Rounder'].includes(p.role);
+    const markup   = Math.round((p.current_price/p.base_price-1)*100);
+    const history  = p.bid_history.length
+      ? p.bid_history.map(b=>`
+          <div class="bh-item">
+            <div><div class="bh-bidder">🏦 ${b.bidder}</div><div class="bh-time">${b.time}</div></div>
+            <div class="bh-amount">₹${b.amount}L</div>
+          </div>`).join('')
+      : '<p style="color:var(--text3);font-size:13px;padding:8px 0">No bids yet — be the first!</p>';
+
+    document.getElementById('playerDetail').innerHTML = `
+      <div class="d-hero">
+        <div class="d-hero-inner">
+          <div class="d-avatar">${init}</div>
+          <div>
+            <div class="d-name">${p.name}</div>
+            <div class="d-tags">
+              <span class="role-tag role-${p.role.replace(' ','-')}">${p.role}</span>
+              <span class="role-tag" style="background:rgba(255,153,0,.15);color:#ff9900;border-color:rgba(255,153,0,.3)">🇮🇳 Indian</span>
+            </div>
+            <div class="d-team">🏟 ${p.team} &nbsp;·&nbsp; Age ${p.age}</div>
+          </div>
+        </div>
+      </div>
+
+      ${p.is_sold ? `
+      <div class="sold-banner">
+        <div class="sb-title">🎉 SOLD!</div>
+        <div class="sb-sub">Sold to <strong>${p.sold_to}</strong> for ₹${p.current_price}L</div>
+      </div>` : ''}
+
+      <div class="price-section">
+        <div class="price-row">
+          <div class="price-item"><div class="pi-label">Base Price</div><div class="pi-value blue">₹${p.base_price}L</div></div>
+          <div class="pdiv"></div>
+          <div class="price-item"><div class="pi-label">Current Bid</div><div class="pi-value gold" id="detail-price-${p.id}">₹${p.current_price}L</div></div>
+          <div class="pdiv"></div>
+          <div class="price-item"><div class="pi-label">Markup</div><div class="pi-value green">+${markup}%</div></div>
+        </div>
+      </div>
+
+      <div class="stats-section">
+        <div class="sec-title">📊 Season Stats</div>
+        <div class="stats-grid">
+          <div class="stat-box"><div class="sv">${p.stats.matches}</div><div class="sl">Matches</div></div>
+          ${bat?`
+          <div class="stat-box"><div class="sv">${p.stats.runs}</div><div class="sl">Runs</div></div>
+          <div class="stat-box"><div class="sv">${p.stats.strike_rate}</div><div class="sl">Strike Rate</div></div>
+          <div class="stat-box"><div class="sv">${p.stats.batting_avg}</div><div class="sl">Avg</div></div>
+          <div class="stat-box"><div class="sv">${p.stats.fifties}</div><div class="sl">Fifties</div></div>
+          <div class="stat-box"><div class="sv">${p.stats.hundreds}</div><div class="sl">100s</div></div>
+          <div class="stat-box"><div class="sv">${p.stats.highest_score}</div><div class="sl">High Score</div></div>`:''}
+          ${bowl?`
+          <div class="stat-box"><div class="sv">${p.stats.wickets}</div><div class="sl">Wickets</div></div>
+          <div class="stat-box"><div class="sv">${p.stats.economy}</div><div class="sl">Economy</div></div>
+          <div class="stat-box"><div class="sv">${p.stats.best_bowling}</div><div class="sl">Best</div></div>`:''}
+          <div class="stat-box"><div class="sv">${p.stats.catches}</div><div class="sl">Catches</div></div>
+        </div>
+      </div>
+
+      <div class="bid-section">
+        <div class="sec-title">🔨 Place a Bid</div>
+        ${p.is_sold
+          ? `<p style="color:var(--green);font-weight:700;font-size:14px">Player sold. Bidding closed.</p>`
+          : `<div class="bid-form">
+              <div class="bidding-as">Bidding as: <strong>${MY_TEAM}</strong></div>
+              <input type="number" id="bidAmount" placeholder="Bid in Lakhs — current: ₹${p.current_price}L" min="${p.current_price+1}"/>
+              <div id="bidMsg" class="bid-msg"></div>
+              <button class="bid-btn" onclick="placeBid(${p.id},${p.current_price})">🔨 PLACE BID</button>
+              <div class="action-row">
+                <button class="sell-btn"  onclick="sellPlayer(${p.id})">✅ CONFIRM SOLD</button>
+                <button class="reset-btn" onclick="resetPlayer(${p.id})">↺ Reset</button>
+              </div>
+            </div>`}
+      </div>
+
+      <div class="history-section">
+        <div class="sec-title">📋 Recent Bids</div>
+        ${history}
+      </div>`;
+  }
+
+  async function placeBid(pid, curPrice) {
+    const amount = parseInt(document.getElementById('bidAmount').value);
+    const msgEl  = document.getElementById('bidMsg');
+    msgEl.className = 'bid-msg';
+
+    if (!amount||isNaN(amount)) { setMsg(msgEl,'err','⚠️ Enter a valid amount.'); return; }
+    if (amount <= curPrice)     { setMsg(msgEl,'err',`⚠️ Must be more than ₹${curPrice}L`); return; }
+
+    const res  = await fetch('/api/bid',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({player_id:pid, amount})
+    });
+    const data = await res.json();
+    if (data.success) {
+      setMsg(msgEl,'ok',`✅ Bid of ₹${amount}L placed!`);
+      document.getElementById('bidAmount').value = '';
+      await selectPlayer(pid);
+    } else {
+      setMsg(msgEl,'err','⚠️ '+data.message);
+    }
+  }
+
+  async function sellPlayer(id) {
+    if (!confirm('Confirm SOLD to highest bidder?')) return;
+    const res  = await fetch('/api/sell',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({player_id:id})});
+    const data = await res.json();
+    if (data.success) {
+      showToast('🎉 SOLD!',`${data.sold_to} — ₹${data.final_price}L`);
+      await fetchPlayers(); await selectPlayer(id);
+    } else alert(data.message);
+  }
+
+  async function resetPlayer(id) {
+    if (!confirm('Reset this player? All bids cleared.')) return;
+    await fetch('/api/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({player_id:id})});
+    await fetchPlayers(); await selectPlayer(id);
+  }
+
+  function setMsg(el,type,text) { el.className='bid-msg '+type; el.textContent=text; }
+
+  function showToast(title,body) {
+    document.getElementById('tTitle').textContent = title;
+    document.getElementById('tBody').textContent  = body;
+    const t = document.getElementById('toast');
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'),4000);
+  }
+
+  function flash(el) {
+    el.classList.remove('price-flash'); void el.offsetWidth; el.classList.add('price-flash');
+  }
+
+  socket.on('price_update', d => {
+    const p = allPlayers.find(x=>x.id===d.player_id);
+    if (p) p.current_price = d.new_price;
+    const cp = document.getElementById('price-'+d.player_id);
+    if (cp) { cp.textContent='₹'+d.new_price+'L'; flash(cp); }
+    const dp = document.getElementById('detail-price-'+d.player_id);
+    if (dp) { dp.textContent='₹'+d.new_price+'L'; flash(dp); }
+    if (d.bidder!=='RESET')
+      showToast('🔨 '+d.player_name, d.bidder+' bid ₹'+d.new_price+'L');
+  });
+
+  socket.on('player_sold', d => {
+    const p = allPlayers.find(x=>x.id===d.player_id);
+    if (p) { p.is_sold=true; p.sold_to=d.sold_to; }
+    showToast('🎉 SOLD! '+d.player_name,`${d.sold_to} — ₹${d.final_price}L`);
+    renderList();
+    if (selectedId===d.player_id) selectPlayer(d.player_id);
+  });
+
+  fetchPlayers();
+</script>
+</body>
+</html>

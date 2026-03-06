@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IPL Auction — Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:    #040810;
+      --bg2:   #080f1a;
+      --card:  #0c1624;
+      --bdr:   #1a3a55;
+      --gold:  #f5c842;
+      --gold2: #c9a227;
+      --blue:  #0ea5e9;
+      --red:   #ef4444;
+      --green: #22c55e;
+      --text:  #e2e8f0;
+      --text2: #94a3b8;
+      --text3: #4a6278;
+    }
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      min-height:100vh;
+      background: var(--bg);
+      font-family: 'Rajdhani', sans-serif;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ── Animated cricket pitch background ── */
+    .bg-art {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      overflow: hidden;
+    }
+
+    /* Pitch lines */
+    .bg-art::before {
+      content: '';
+      position: absolute;
+      left: 50%; top: 50%;
+      transform: translate(-50%, -50%) perspective(600px) rotateX(70deg);
+      width: 280px; height: 900px;
+      border: 1px solid rgba(245,200,66,0.08);
+      border-radius: 4px;
+    }
+    .bg-art::after {
+      content: '';
+      position: absolute;
+      left: 50%; top: 50%;
+      transform: translate(-50%, -50%) perspective(600px) rotateX(70deg);
+      width: 140px; height: 900px;
+      border: 1px solid rgba(245,200,66,0.05);
+      border-radius: 4px;
+    }
+
+    /* Glow orbs */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.18;
+      animation: float 8s ease-in-out infinite;
+    }
+    .orb1 { width:500px; height:500px; background:var(--gold);  top:-120px; right:-100px; animation-delay:0s; }
+    .orb2 { width:400px; height:400px; background:var(--blue);  bottom:-100px; left:-80px; animation-delay:-3s; }
+    .orb3 { width:300px; height:300px; background:#ff6b00; top:40%; left:60%; animation-delay:-5s; opacity:0.1; }
+
+    @keyframes float {
+      0%,100% { transform: translateY(0) scale(1); }
+      50%      { transform: translateY(-30px) scale(1.05); }
+    }
+
+    /* Floating cricket balls */
+    .ball {
+      position: absolute;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: rgba(245,200,66,0.15);
+      border: 1px solid rgba(245,200,66,0.25);
+      animation: drift linear infinite;
+    }
+    @keyframes drift {
+      0%   { transform: translateY(100vh) rotate(0deg); opacity:0; }
+      10%  { opacity:1; }
+      90%  { opacity:1; }
+      100% { transform: translateY(-100px) rotate(720deg); opacity:0; }
+    }
+
+    /* ── Card ── */
+    .login-wrap {
+      position: relative; z-index: 10;
+      width: 100%; max-width: 440px;
+      padding: 0 20px;
+      animation: slideUp .6s cubic-bezier(.34,1.56,.64,1) both;
+    }
+    @keyframes slideUp {
+      from { opacity:0; transform:translateY(40px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    /* Logo */
+    .logo-area { text-align:center; margin-bottom:32px; }
+    .logo-icon { font-size:52px; display:block; margin-bottom:8px; animation:spin 12s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .logo-title {
+      font-family:'Bebas Neue',sans-serif; font-size:52px; letter-spacing:.06em; line-height:1;
+      background:linear-gradient(135deg,#fff 0%,var(--gold) 45%,#fff 100%);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    }
+    .logo-sub { font-size:13px; color:var(--text2); letter-spacing:.25em; text-transform:uppercase; font-weight:600; margin-top:4px; }
+
+    /* Card box */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--bdr);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 30px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(245,200,66,.05);
+    }
+
+    /* Tabs */
+    .tabs { display:flex; border-bottom:1px solid var(--bdr); }
+    .tab-btn {
+      flex:1; padding:16px; background:transparent; border:none;
+      font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:.08em;
+      color:var(--text3); cursor:pointer; transition:all .2s;
+      position: relative;
+    }
+    .tab-btn::after {
+      content:''; position:absolute; bottom:0; left:50%; right:50%; height:2px;
+      background:var(--gold); transition:all .3s;
+    }
+    .tab-btn.active { color:var(--gold); }
+    .tab-btn.active::after { left:0; right:0; }
+    .tab-btn:hover:not(.active) { color:var(--text2); }
+
+    /* Forms */
+    .form-pane { padding:28px 28px 24px; display:none; }
+    .form-pane.active { display:block; animation:fadeIn .3s ease; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+    .field { margin-bottom:14px; }
+    .field label {
+      display:block; font-size:11px; font-weight:700; letter-spacing:.18em;
+      color:var(--text3); text-transform:uppercase; margin-bottom:6px;
+    }
+    .field input {
+      width:100%; background:#07111d; border:1px solid var(--bdr); color:var(--text);
+      padding:11px 14px; border-radius:5px;
+      font-family:'Rajdhani',sans-serif; font-size:15px; font-weight:600;
+      outline:none; transition:border-color .2s;
+    }
+    .field input:focus { border-color:var(--gold); }
+    .field input::placeholder { color:var(--text3); }
+
+    .submit-btn {
+      width:100%; margin-top:6px;
+      background:var(--gold); color:#050a0f; border:none;
+      padding:14px; border-radius:5px;
+      font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:.1em;
+      cursor:pointer; transition:all .22s;
+    }
+    .submit-btn:hover { background:#fff; transform:translateY(-2px); box-shadow:0 8px 24px rgba(245,200,66,.3); }
+    .submit-btn:active { transform:translateY(0); }
+
+    .err-msg {
+      background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.3);
+      color:var(--red); font-size:13px; font-weight:600;
+      padding:9px 12px; border-radius:4px; margin-bottom:14px; display:none;
+    }
+    .err-msg.show { display:block; }
+
+    .ok-msg {
+      background:rgba(34,197,94,.12); border:1px solid rgba(34,197,94,.3);
+      color:var(--green); font-size:13px; font-weight:600;
+      padding:9px 12px; border-radius:4px; margin-bottom:14px; display:none;
+    }
+    .ok-msg.show { display:block; }
+
+    .hint { font-size:12px; color:var(--text3); text-align:center; margin-top:14px; font-weight:500; }
+    .hint span { color:var(--gold); cursor:pointer; }
+    .hint span:hover { text-decoration:underline; }
+
+    /* Divider */
+    .or-divider {
+      display:flex; align-items:center; gap:10px;
+      margin:18px 0; color:var(--text3); font-size:12px; font-weight:700; letter-spacing:.1em;
+    }
+    .or-divider::before, .or-divider::after {
+      content:''; flex:1; height:1px; background:var(--bdr);
+    }
+  </style>
+</head>
+<body>
+
+<!-- Background art -->
+<div class="bg-art"></div>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="orb orb3"></div>
+
+<script>
+  // Floating balls
+  for (let i = 0; i < 18; i++) {
+    const b = document.createElement('div');
+    b.className = 'ball';
+    b.style.cssText = `
+      left:${Math.random()*100}%;
+      width:${6+Math.random()*10}px;
+      height:${6+Math.random()*10}px;
+      animation-duration:${8+Math.random()*14}s;
+      animation-delay:${-Math.random()*20}s;
+    `;
+    document.body.appendChild(b);
+  }
+</script>
+
+<!-- Login Card -->
+<div class="login-wrap">
+  <div class="logo-area">
+    <span class="logo-icon">🏏</span>
+    <div class="logo-title">IPL Auction</div>
+    <div class="logo-sub">2025 Mega Auction Platform</div>
+  </div>
+
+  <div class="card">
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" id="tabLogin" onclick="switchTab('login')">Login</button>
+      <button class="tab-btn" id="tabRegister" onclick="switchTab('register')">Register</button>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <div class="form-pane active" id="paneLogin">
+      <div class="err-msg" id="loginErr"></div>
+      <div class="field">
+        <label>Email Address</label>
+        <input type="email" id="loginEmail" placeholder="you@example.com" />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="loginPass" placeholder="Enter your password"
+               onkeydown="if(event.key==='Enter') doLogin()" />
+      </div>
+      <button class="submit-btn" onclick="doLogin()">🔨 Enter the Auction</button>
+      <p class="hint">No account? <span onclick="switchTab('register')">Register here</span></p>
+    </div>
+
+    <!-- REGISTER FORM -->
+    <div class="form-pane" id="paneRegister">
+      <div class="err-msg" id="regErr"></div>
+      <div class="ok-msg"  id="regOk"></div>
+      <div class="field">
+        <label>Username</label>
+        <input type="text" id="regUsername" placeholder="e.g. dhruv99" />
+      </div>
+      <div class="field">
+        <label>Team Name <span style="color:var(--text3);font-size:10px">(shown when you bid)</span></label>
+        <input type="text" id="regTeam" placeholder="e.g. Mumbai Mavericks" />
+      </div>
+      <div class="field">
+        <label>Email Address</label>
+        <input type="email" id="regEmail" placeholder="you@example.com" />
+      </div>
+      <div class="field">
+        <label>Password <span style="color:var(--text3);font-size:10px">(min 6 chars)</span></label>
+        <input type="password" id="regPass" placeholder="Create a password"
+               onkeydown="if(event.key==='Enter') doRegister()" />
+      </div>
+      <button class="submit-btn" onclick="doRegister()">🏟 Create Account</button>
+      <p class="hint">Already have an account? <span onclick="switchTab('login')">Login here</span></p>
+    </div>
+  </div>
+</div>
+
+<script>
+  function switchTab(tab) {
+    document.getElementById('tabLogin').classList.toggle('active',    tab==='login');
+    document.getElementById('tabRegister').classList.toggle('active', tab==='register');
+    document.getElementById('paneLogin').classList.toggle('active',    tab==='login');
+    document.getElementById('paneRegister').classList.toggle('active', tab==='register');
+  }
+
+  async function doLogin() {
+    const email    = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPass').value;
+    const errEl    = document.getElementById('loginErr');
+    errEl.classList.remove('show');
+
+    if (!email || !password) { showErr(errEl,'Please fill in all fields.'); return; }
+
+    const res  = await fetch('/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email, password})
+    });
+    const data = await res.json();
+    if (data.success) {
+      window.location.href = '/';
+    } else {
+      showErr(errEl, data.message || 'Login failed.');
+    }
+  }
+
+  async function doRegister() {
+    const username  = document.getElementById('regUsername').value.trim();
+    const team_name = document.getElementById('regTeam').value.trim();
+    const email     = document.getElementById('regEmail').value.trim();
+    const password  = document.getElementById('regPass').value;
+    const errEl     = document.getElementById('regErr');
+    const okEl      = document.getElementById('regOk');
+    errEl.classList.remove('show');
+    okEl.classList.remove('show');
+
+    if (!username || !email || !password) { showErr(errEl,'Please fill in all required fields.'); return; }
+
+    const res  = await fetch('/register', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({username, email, password, team_name})
+    });
+    const data = await res.json();
+    if (data.success) {
+      window.location.href = '/';
+    } else {
+      showErr(errEl, data.message || 'Registration failed.');
+    }
+  }
+
+  function showErr(el, msg) { el.textContent = msg; el.classList.add('show'); }
+</script>
+</body>
+</html>
